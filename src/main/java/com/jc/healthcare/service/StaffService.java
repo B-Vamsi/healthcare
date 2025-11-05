@@ -1,0 +1,250 @@
+package com.jc.healthcare.service;
+
+import com.jc.healthcare.model.Staff;
+import com.jc.healthcare.repository.StaffRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class StaffService {
+
+    @Autowired
+    private StaffRepository staffRepository;
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+    // ✅ Store OTPs temporarily in memory (email → otp)
+    private final Map<String, String> otpStore = new ConcurrentHashMap<>();
+    private final Map<String, Long> otpTimestamps = new ConcurrentHashMap<>();
+
+    // =========================
+    // 🧩 CRUD & IMAGE METHODS
+    // =========================
+
+    // 1️⃣ Fetch all staff
+    public List<Staff> getAllStaff() {
+        return staffRepository.findAll();
+    }
+
+    // 2️⃣ Fetch by department
+    public List<Staff> getStaffByDepartment(String department) {
+        return staffRepository.findByDepartmentIgnoreCase(department);
+    }
+
+    // 3️⃣ Add new staff (with password)
+    public Staff addNewStaff(Staff staff) {
+        if (staff.getAdhar() != null && staffRepository.existsByAdhar(staff.getAdhar())) {
+            throw new IllegalArgumentException("Aadhar number already exists: " + staff.getAdhar());
+        }
+        staff.setLoginAttempts(0);
+        return staffRepository.save(staff);
+    }
+
+    // 4️⃣ Delete staff
+    public boolean deleteStaff(Long id) {
+        if (staffRepository.existsById(id)) {
+            staffRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
+
+    // 5️⃣ Update staff details
+    public Staff updateStaff(Long id, Staff updatedStaff) {
+        return staffRepository.findById(id)
+                .map(existing -> {
+                    existing.setName(updatedStaff.getName());
+                    existing.setMobile(updatedStaff.getMobile());
+                    existing.setEmail(updatedStaff.getEmail());
+                    existing.setAdhar(updatedStaff.getAdhar());
+                    existing.setAddress(updatedStaff.getAddress());
+                    existing.setDepartment(updatedStaff.getDepartment());
+                    existing.setRole(updatedStaff.getRole());
+                    existing.setSalary(updatedStaff.getSalary());
+                    existing.setJoiningDate(updatedStaff.getJoiningDate());
+                    existing.setTimings(updatedStaff.getTimings());
+                    existing.setPassword(updatedStaff.getPassword());
+                    return staffRepository.save(existing);
+                })
+                .orElseThrow(() -> new RuntimeException("Staff not found with ID " + id));
+    }
+
+    // 6️⃣ Upload image
+    public void uploadStaffImage(Long id, MultipartFile file) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found with ID " + id));
+        try {
+            staff.setImage(file.getBytes());
+            staffRepository.save(staff);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload image", e);
+        }
+    }
+
+    // 7️⃣ Update image
+    public void updateStaffImage(Long id, MultipartFile file) {
+        uploadStaffImage(id, file);
+    }
+
+    // 8️⃣ Fetch image
+    public byte[] getStaffImage(Long id) {
+        return staffRepository.findById(id)
+                .map(Staff::getImage)
+                .orElse(null);
+    }
+
+    // =========================
+    // 🔐 LOGIN + OTP METHODS
+    // =========================
+
+    public String verifyLogin(String email, String password) {
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff == null) {
+            return "Invalid Email";
+        }
+
+        if (staff.getLoginAttempts() >= 4) {
+            return "Account Locked. Contact Admin.";
+        }
+
+        if (!staff.getPassword().equals(password)) {
+            staff.setLoginAttempts(staff.getLoginAttempts() + 1);
+            staffRepository.save(staff);
+            return "Invalid Password. Attempt " + staff.getLoginAttempts();
+        }
+
+        // ✅ Reset failed attempts
+        staff.setLoginAttempts(0);
+        staffRepository.save(staff);
+
+        // ✅ Generate OTP and send email
+        String otp = generateOtp();
+        sendOtpEmail(staff.getEmail(), otp);
+
+        // ✅ Save OTP in memory with timestamp
+        otpStore.put(email, otp);
+        otpTimestamps.put(email, System.currentTimeMillis());
+
+        return "OTP Sent to your registered email";
+    }
+
+    public String verifyOtp(String email, String enteredOtp) {
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff == null) return "User not found";
+
+        String storedOtp = otpStore.get(email);
+        Long createdAt = otpTimestamps.get(email);
+
+        if (storedOtp == null || createdAt == null) {
+            return "OTP not generated or expired. Please login again.";
+        }
+
+        // ✅ Check OTP expiry (2 minutes = 120000 ms)
+        long elapsed = System.currentTimeMillis() - createdAt;
+        if (elapsed > 120000) { // 2 minutes
+            otpStore.remove(email);
+            otpTimestamps.remove(email);
+            return "OTP expired. Please request a new one.";
+        }
+
+        // ✅ Match OTP
+        if (storedOtp.equals(enteredOtp)) {
+            otpStore.remove(email);
+            otpTimestamps.remove(email);
+            return "Login Successful";
+        }
+
+        return "Invalid OTP. Please try again.";
+    }
+
+    // =========================
+    // ✉️ EMAIL + OTP GENERATION
+    // =========================
+
+    private String generateOtp() {
+        return String.valueOf(100000 + new Random().nextInt(900000)); // 6-digit random OTP
+    }
+
+    private void sendOtpEmail(String to, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject("Your Login OTP - JC Healthcare");
+            message.setText("Your OTP is: " + otp + "\n\nThis OTP is valid for 2 minutes.\n\n- JC Healthcare Team");
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send OTP email: " + e.getMessage());
+        }
+    }
+ // 🔹 Get staff details by email
+    public Staff getStaffByEmail(String email) {
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff == null) {
+            throw new RuntimeException("Staff not found with email: " + email);
+        }
+        return staff;
+    }
+    public Staff updateStaffFieldsByEmail(String email, Map<String, Object> updates) {
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff == null) {
+            throw new RuntimeException("Staff not found with email: " + email);
+        }
+
+        // 🧩 Update only the fields provided in the request
+        if (updates.containsKey("name")) {
+            staff.setName((String) updates.get("name"));
+        }
+        if (updates.containsKey("mobile")) {
+            staff.setMobile((String) updates.get("mobile"));
+        }
+        if (updates.containsKey("adhar")) {
+            staff.setAdhar((String) updates.get("adhar"));
+        }
+        if (updates.containsKey("address")) {
+            staff.setAddress((String) updates.get("address"));
+        }
+        if (updates.containsKey("department")) {
+            staff.setDepartment((String) updates.get("department"));
+        }
+        if (updates.containsKey("role")) {
+            staff.setRole((String) updates.get("role"));
+        }
+        if (updates.containsKey("salary")) {
+            staff.setSalary(Double.valueOf(updates.get("salary").toString()));
+        }
+        if (updates.containsKey("timings")) {
+            staff.setTimings((String) updates.get("timings"));
+        }
+        if (updates.containsKey("password")) {
+            staff.setPassword((String) updates.get("password"));
+        }
+        if (updates.containsKey("twoFactorAuthentication")) {
+            staff.setTwoFactAuthentication((int) updates.get("twoFactorAuthentication"));
+        }
+
+        return staffRepository.save(staff);
+    }
+ // ✅ Delete staff image
+    public void deleteStaffImage(Long id) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found with ID " + id));
+
+        if (staff.getImage() == null) {
+            throw new RuntimeException("No image found for staff ID: " + id);
+        }
+
+        staff.setImage(null); // Remove image
+        staffRepository.save(staff);
+    }
+
+
+
+}
