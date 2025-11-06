@@ -100,8 +100,9 @@ public class StaffController {
         return ResponseEntity.ok(result);
     }
     
-    @RequestMapping(value = "/email/{email}", method = RequestMethod.PATCH)
-    public ResponseEntity<String> updateStaffByEmail(
+   
+    @PatchMapping("/email/{email}")
+    public ResponseEntity<String> patchStaffByEmail(
             @PathVariable String email,
             @RequestBody Map<String, Object> updates) {
         try {
@@ -110,6 +111,34 @@ public class StaffController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-        
     }
+    @PatchMapping("/{id}")
+    public ResponseEntity<String> updateStaffById(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> updates) {
+        try {
+            Staff updatedStaff = staffService.updateStaffFieldsById(id, updates);
+            return ResponseEntity.ok("Staff updated successfully for ID: " + updatedStaff.getId());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+    @PostMapping("/send-otp")
+    public ResponseEntity<String> sendOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email is required");
+        }
+
+        try {
+            String response = staffService.sendOtpToEmail(email);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+
+
+
     }

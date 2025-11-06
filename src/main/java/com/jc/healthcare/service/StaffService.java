@@ -192,13 +192,45 @@ public class StaffService {
         }
         return staff;
     }
+   
+    public void deleteStaffImage(Long id) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found with ID " + id));
+
+        if (staff.getImage() == null) {
+            throw new RuntimeException("No image found for staff ID: " + id);
+        }
+
+        staff.setImage(null); // Remove image
+        staffRepository.save(staff);
+    }
     public Staff updateStaffFieldsByEmail(String email, Map<String, Object> updates) {
         Staff staff = staffRepository.findByEmail(email);
         if (staff == null) {
             throw new RuntimeException("Staff not found with email: " + email);
         }
 
-        // 🧩 Update only the fields provided in the request
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "name" -> staff.setName((String) value);
+                case "mobile" -> staff.setMobile((String) value);
+                case "adhar" -> staff.setAdhar((String) value);
+                case "address" -> staff.setAddress((String) value);
+                case "department" -> staff.setDepartment((String) value);
+                case "role" -> staff.setRole((String) value);
+                case "salary" -> staff.setSalary(Double.valueOf(value.toString()));
+                case "timings" -> staff.setTimings((String) value);
+                case "password" -> staff.setPassword((String) value);
+                case "twoFactorAuthentication" -> staff.setTwoFactAuthentication(Integer.valueOf(value.toString()));
+            }
+        });
+
+        return staffRepository.save(staff);
+    }
+    public Staff updateStaffFieldsById(Long id, Map<String, Object> updates) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found with ID: " + id));
+
         if (updates.containsKey("name")) {
             staff.setName((String) updates.get("name"));
         }
@@ -227,23 +259,38 @@ public class StaffService {
             staff.setPassword((String) updates.get("password"));
         }
         if (updates.containsKey("twoFactorAuthentication")) {
-            staff.setTwoFactAuthentication((int) updates.get("twoFactorAuthentication"));
+            Object value = updates.get("twoFactorAuthentication");
+            if (value instanceof Number) {
+                staff.setTwoFactAuthentication(((Number) value).intValue());
+            } else if (value != null) {
+                staff.setTwoFactAuthentication(Integer.parseInt(value.toString()));
+            }
         }
 
         return staffRepository.save(staff);
     }
- // ✅ Delete staff image
-    public void deleteStaffImage(Long id) {
-        Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Staff not found with ID " + id));
+ // =========================
+ // ✉️ SEND OTP WITHOUT LOGIN
+ // =========================
+ public String sendOtpToEmail(String email) {
+     Staff staff = staffRepository.findByEmail(email);
+     if (staff == null) {
+         throw new RuntimeException("No user found with email: " + email);
+     }
 
-        if (staff.getImage() == null) {
-            throw new RuntimeException("No image found for staff ID: " + id);
-        }
+     // Generate OTP
+     String otp = generateOtp();
+     sendOtpEmail(staff.getEmail(), otp);
 
-        staff.setImage(null); // Remove image
-        staffRepository.save(staff);
-    }
+    
+     otpStore.put(email, otp);
+     otpTimestamps.put(email, System.currentTimeMillis());
+
+     return "OTP sent successfully to " + email;
+ }
+
+
+
 
 
 
