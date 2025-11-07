@@ -130,4 +130,8 @@ public class DoctorService {
         doctor.setStatus(status);
         return doctorRepository.save(doctor);
     }
+    public Optional<Doctor> getDoctorByEmail(String email) {
+        return doctorRepository.findByEmail(email);
+    }
+
 }

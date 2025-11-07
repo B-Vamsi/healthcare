@@ -228,4 +228,21 @@ public class DoctorController {
     public long getDoctorCount() {
         return doctorService.Count();
     }
+    @GetMapping("/email/{email}")
+    public ResponseEntity<Map<String, Object>> getDoctorByEmail(@PathVariable String email) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Doctor doctor = doctorService.getDoctorByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Doctor not found with email: " + email));
+            response.put("success", true);
+            response.put("data", doctor);
+            response.put("message", "Doctor retrieved successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+    }
+
 }
