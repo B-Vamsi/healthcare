@@ -139,6 +139,24 @@ public class StaffController {
     }
 
 
+ // ✅ Update password for both staff_master and doctor if email exists
+    @PutMapping("/password/update")
+
+    public ResponseEntity<String> updatePassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String newPassword = body.get("password");
+
+        if (email == null || newPassword == null) {
+            return ResponseEntity.badRequest().body("Email and password are required");
+        }
+
+        try {
+            staffService.updatePasswordForAllRoles(email, newPassword);
+            return ResponseEntity.ok("Password updated successfully for " + email);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
 
 
     }

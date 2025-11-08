@@ -1,6 +1,9 @@
 package com.jc.healthcare.service;
 
 import com.jc.healthcare.model.Staff;
+import com.jc.healthcare.repository.DoctorRepository;
+import com.jc.healthcare.model.Doctor;
+
 import com.jc.healthcare.repository.StaffRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
@@ -17,6 +20,10 @@ public class StaffService {
 
     @Autowired
     private StaffRepository staffRepository;
+    @Autowired
+    private DoctorRepository doctorRepository;
+    
+
 
     @Autowired
     private JavaMailSender mailSender;
@@ -135,6 +142,7 @@ public class StaffService {
 
         return "OTP Sent to your registered email";
     }
+   
 
     public String verifyOtp(String email, String enteredOtp) {
         Staff staff = staffRepository.findByEmail(email);
@@ -272,26 +280,67 @@ public class StaffService {
  // =========================
  // ✉️ SEND OTP WITHOUT LOGIN
  // =========================
- public String sendOtpToEmail(String email) {
-     Staff staff = staffRepository.findByEmail(email);
-     if (staff == null) {
-         throw new RuntimeException("No user found with email: " + email);
-     }
+ // ✅ Check both staff and doctor tables when sending OTP (Forgot Password)
+    public String sendOtpToEmail(String email) {
+        boolean userFound = false;
 
-     // Generate OTP
-     String otp = generateOtp();
-     sendOtpEmail(staff.getEmail(), otp);
+        // 1️⃣ Check in staff table
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff != null) {
+            userFound = true;
+        }
+
+        // 2️⃣ Check in doctor table if not found in staff
+        if (!userFound && doctorRepository.findByEmail(email).isPresent()) {
+            userFound = true;
+        }
+
+        // 3️⃣ If user not found in both
+        if (!userFound) {
+            throw new RuntimeException("No user found with email: " + email);
+        }
+
+        // 4️⃣ Generate and send OTP
+        String otp = generateOtp();
+        sendOtpEmail(email, otp);
+
+        otpStore.put(email, otp);
+        otpTimestamps.put(email, System.currentTimeMillis());
+
+        return "OTP sent successfully to " + email;
+    }
 
     
-     otpStore.put(email, otp);
-     otpTimestamps.put(email, System.currentTimeMillis());
 
-     return "OTP sent successfully to " + email;
- }
+    public void updatePasswordForAllRoles(String email, String newPassword) {
+        boolean updated = false;
 
+        // Check Staff table
+        Staff staff = staffRepository.findByEmail(email);
+        if (staff != null) {
+            staff.setPassword(newPassword);
+            staffRepository.save(staff);
+            updated = true;
+        }
 
+        // Check Doctor table
+        Optional<Doctor> doctorOpt = doctorRepository.findByEmail(email);
+        if (doctorOpt.isPresent()) {
+            Doctor doctor = doctorOpt.get();
+            doctor.setPassword(newPassword);
+            doctorRepository.save(doctor);
+            updated = true;
+        }
 
-
-
+        // Handle not found case
+        if (!updated) {
+            throw new RuntimeException("No user found with email: " + email);
+        }
+    }
 
 }
+
+
+
+
+

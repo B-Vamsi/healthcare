@@ -244,5 +244,31 @@ public class DoctorController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }
+    @PatchMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> partiallyUpdateDoctor(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> updates) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            Doctor updatedDoctor = doctorService.partiallyUpdateDoctor(id, updates);
+            response.put("success", true);
+            response.put("data", updatedDoctor);
+            response.put("message", "Doctor details updated successfully");
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error updating doctor details: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+    }
+
 
 }

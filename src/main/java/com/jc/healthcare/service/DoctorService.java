@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -133,5 +134,43 @@ public class DoctorService {
     public Optional<Doctor> getDoctorByEmail(String email) {
         return doctorRepository.findByEmail(email);
     }
+    public Doctor partiallyUpdateDoctor(Long id, Map<String, Object> updates) {
+        Doctor doctor = doctorRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Doctor not found with id: " + id));
+
+        updates.forEach((key, value) -> {
+            if (value == null) return;
+
+            switch (key) {
+                case "doctorName" -> doctor.setDoctorName((String) value);
+                case "email" -> doctor.setEmail((String) value);
+                case "phone" -> doctor.setPhone((String) value);
+                case "specialization" -> doctor.setSpecialization((String) value);
+                case "status" -> doctor.setStatus((String) value);
+                case "address" -> doctor.setAddress((String) value);
+                case "dateOfBirth" -> doctor.setDateOfBirth((String) value);
+                case "gender" -> doctor.setGender((String) value);
+                case "experience" -> {
+                    try {
+                        doctor.setExperience(Integer.parseInt(value.toString()));
+                    } catch (NumberFormatException e) {
+                        throw new RuntimeException("Invalid experience value: must be a number");
+                    }
+                }
+                case "medicalLicenseNo" -> doctor.setMedicalLicenseNo((String) value);
+                case "role" -> doctor.setRole((String) value);
+                case "password" -> doctor.setPassword((String) value);
+                case "city" -> doctor.setCity((String) value);
+                case "state" -> doctor.setState((String) value);
+                case "pinCode" -> doctor.setPinCode((String) value);
+                case "country" -> doctor.setCountry((String) value);
+                default -> throw new RuntimeException("Invalid field: " + key);
+            }
+        });
+
+        return doctorRepository.save(doctor);
+    }
+
+
 
 }
