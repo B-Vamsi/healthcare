@@ -25,9 +25,36 @@ public class DoctorController {
     public ResponseEntity<Map<String, Object>> getAllDoctors() {
         Map<String, Object> response = new HashMap<>();
         try {
-            List<Doctor> doctors = doctorService.getAllDoctors();
+            List<Map<String, Object>> doctorsList = doctorService.getAllDoctors().stream().map(doctor -> {
+                Map<String, Object> d = new HashMap<>();
+                d.put("doctorId", doctor.getDoctorId());
+                d.put("doctorName", doctor.getDoctorName());
+                d.put("specialization", doctor.getSpecialization());
+                d.put("phone", doctor.getPhone());
+                d.put("email", doctor.getEmail());
+                d.put("experience", doctor.getExperience());
+                d.put("status", doctor.getStatus());
+                d.put("address", doctor.getAddress());
+                d.put("dateOfBirth", doctor.getDateOfBirth());
+                d.put("gender", doctor.getGender());
+                d.put("city", doctor.getCity());
+                d.put("state", doctor.getState());
+                d.put("pinCode", doctor.getPinCode());
+                d.put("country", doctor.getCountry());
+                d.put("medicalLicenseNo", doctor.getMedicalLicenseNo());
+                d.put("role", doctor.getRole());
+                d.put("password", doctor.getPassword());
+
+                if (doctor.getImage() != null)
+                    d.put("image", java.util.Base64.getEncoder().encodeToString(doctor.getImage()));
+                else
+                    d.put("image", null);
+
+                return d;
+            }).toList();
+
             response.put("success", true);
-            response.put("data", doctors);
+            response.put("data", doctorsList);
             response.put("message", "Doctors retrieved successfully");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -43,16 +70,51 @@ public class DoctorController {
         try {
             Doctor doctor = doctorService.getDoctorById(id)
                     .orElseThrow(() -> new RuntimeException("Doctor not found with ID: " + id));
+
+            // ✅ Convert image (byte[]) → Base64 string
+            String base64Image = null;
+            if (doctor.getImage() != null) {
+                base64Image = java.util.Base64.getEncoder().encodeToString(doctor.getImage());
+            }
+
+            // ✅ Build a response map (manual)
+            Map<String, Object> doctorData = new HashMap<>();
+            doctorData.put("doctorId", doctor.getDoctorId());
+            doctorData.put("doctorName", doctor.getDoctorName());
+            doctorData.put("specialization", doctor.getSpecialization());
+            doctorData.put("phone", doctor.getPhone());
+            doctorData.put("email", doctor.getEmail());
+            doctorData.put("experience", doctor.getExperience());
+            doctorData.put("status", doctor.getStatus());
+            doctorData.put("address", doctor.getAddress());
+            doctorData.put("dateOfBirth", doctor.getDateOfBirth());
+            doctorData.put("gender", doctor.getGender());
+            doctorData.put("city", doctor.getCity());
+            doctorData.put("state", doctor.getState());
+            doctorData.put("pinCode", doctor.getPinCode());
+            doctorData.put("country", doctor.getCountry());
+            doctorData.put("medicalLicenseNo", doctor.getMedicalLicenseNo());
+            doctorData.put("role", doctor.getRole());
+            doctorData.put("password", doctor.getPassword());
+            doctorData.put("image", base64Image); // ✅ include Base64 image here
+
             response.put("success", true);
-            response.put("data", doctor);
+            response.put("data", doctorData);
             response.put("message", "Doctor retrieved successfully");
+
             return ResponseEntity.ok(response);
+
         } catch (RuntimeException e) {
             response.put("success", false);
             response.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error retrieving doctor: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<Map<String, Object>> createDoctor(

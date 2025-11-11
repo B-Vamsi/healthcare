@@ -37,6 +37,20 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             @Param("doctorStatus") String doctorStatus,
             @Param("doctorId") Long doctorId
     );
+    
+    @Query(value = """
+    	    SELECT 
+    	        p.patient_id, p.name, p.gender, p.disease, p.phone, p.address, 
+    	        p.doctor_status, p.medision_status, p.lab_status,
+    	        b.booking_id, b.bed_id, b.admission_date, b.discharge_date, b.status AS bed_status,
+    	        w.ward_id, w.ward_name, w.ward_type, w.total_beds, w.created_on
+    	    FROM patients p
+    	    LEFT JOIN bed_booking b ON p.patient_id = b.patient_id
+    	    LEFT JOIN ward_master w ON b.ward_id = w.ward_id
+    	    WHERE p.patient_id = :patientId
+    	    """, nativeQuery = true)
+    	List<Object[]> getFullPatientDetails(@Param("patientId") Long patientId);
+
 
 
 

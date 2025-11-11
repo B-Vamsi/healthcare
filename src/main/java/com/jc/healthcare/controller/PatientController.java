@@ -202,6 +202,50 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+    
+    @PatchMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> patchUpdatePatient(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> updates) {
+        
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Patient updatedPatient = patientService.partialUpdatePatient(id, updates);
+            response.put("success", true);
+            response.put("data", updatedPatient);
+            response.put("message", "Patient details updated successfully (partial update)");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error updating patient details: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @GetMapping("/full-details/{patientId}")
+    public ResponseEntity<Map<String, Object>> getFullPatientDetails(@PathVariable Long patientId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Map<String, Object> data = patientService.getFullPatientDetails(patientId);
+            response.put("success", true);
+            response.put("data", data);
+            response.put("message", "Full patient details fetched successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Error fetching full details: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
 
 
 }

@@ -64,7 +64,8 @@ public class Patient {
     @Column(name = "DATE_ISSUED")
     private LocalDate dateIssued;
 
-    
+    @Column(name = "DISEASE", length = 100)
+    private String disease;
 
     @Column(name = "MEDICATION", length = 200)
     private String medication;
@@ -80,4 +81,6 @@ public class Patient {
 
     @Column(name = "LAB_STATUS", length = 50)
     private String labStatus;
+
+	
 }
