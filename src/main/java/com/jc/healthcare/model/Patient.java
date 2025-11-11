@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 @Data
 @Entity
-@Table(name = "patients") // Make sure the table name matches your Oracle table
+@Table(name = "patients") 
 public class Patient {
 
     @Id
