@@ -7,12 +7,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
+import java.sql.Timestamp;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class LabService {
 
-    // ✅ Field Injection
     @Autowired
     private LabCategoryRepository categoryRepo;
 
@@ -22,7 +23,10 @@ public class LabService {
     @Autowired
     private LabReportRepository reportRepo;
 
-    // ========== CATEGORY CRUD ==========
+    @Autowired
+    private PrescriptionRepository prescriptionRepo;
+
+
     public List<LabCategory> getAllCategories() {
         return categoryRepo.findAll();
     }
@@ -42,7 +46,8 @@ public class LabService {
         categoryRepo.deleteById(id);
     }
 
-    // ========== TEST CRUD ==========
+  
+
     public List<LabTest> getAllTests() {
         return testRepo.findAll();
     }
@@ -51,7 +56,6 @@ public class LabService {
         return testRepo.save(test);
     }
 
-    // ✅ PATCH update (partial update)
     public LabTest patchUpdateTest(Long id, LabTest partialTest) {
         LabTest test = testRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Test not found"));
@@ -72,7 +76,8 @@ public class LabService {
         testRepo.deleteById(id);
     }
 
-    // ========== REPORT CRUD ==========
+   
+
     public LabReport uploadReport(Long patientId, Long testId, MultipartFile file) throws IOException {
         LabTest test = testRepo.findById(testId)
                 .orElseThrow(() -> new RuntimeException("Test not found"));
@@ -95,7 +100,6 @@ public class LabService {
         reportRepo.deleteById(reportId);
     }
 
-    // ✅ PATCH update for file upload (only file update)
     public LabReport patchUpdateReportFile(Long reportId, MultipartFile newFile) throws IOException {
         LabReport report = reportRepo.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
@@ -107,5 +111,60 @@ public class LabService {
         }
 
         return reportRepo.save(report);
+    }
+
+  
+    private List<Map<String, Object>> formatPrescriptionData(List<Object[]> rawData) {
+        return rawData.stream().map(row -> {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("patientId", ((Number) row[0]).longValue());
+            record.put("patientName", row[1]);
+            record.put("labStatus", row[2]);
+            record.put("dateIssued", row[3] != null ? ((Timestamp) row[3]).toLocalDateTime() : null);
+            record.put("selectedMedicines", row[4]);
+            record.put("selectedTests", row[5]);
+            record.put("dosage", row[6]);
+            record.put("medication", row[7]);
+            return record;
+        }).collect(Collectors.toList());
+    }
+
+    
+    public Map<String, Object> getUrgentLabsWithPrescriptionToday() {
+        List<Object[]> rawData = prescriptionRepo.findUrgentLabsToday();
+        List<Map<String, Object>> data = formatPrescriptionData(rawData);
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", data.size());
+        response.put("data", data);
+        return response;
+    }
+
+    
+    public Map<String, Object> getPendingLabsWithPrescriptionToday() {
+        List<Object[]> rawData = prescriptionRepo.findPendingLabsToday();
+        List<Map<String, Object>> data = formatPrescriptionData(rawData);
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", data.size());
+        response.put("data", data);
+        return response;
+    }
+
+   
+    public Map<String, Object> getCompletedLabsWithPrescriptionToday() {
+        List<Object[]> rawData = prescriptionRepo.findCompletedLabsToday();
+        List<Map<String, Object>> data = formatPrescriptionData(rawData);
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", data.size());
+        response.put("data", data);
+        return response;
+    }
+
+        public Map<String, Object> getAllLabsWithPrescriptionToday() {
+        List<Object[]> rawData = prescriptionRepo.findAllWithLabStatusToday();
+        List<Map<String, Object>> data = formatPrescriptionData(rawData);
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", data.size());
+        response.put("data", data);
+        return response;
     }
 }

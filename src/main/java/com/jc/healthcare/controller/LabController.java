@@ -92,4 +92,25 @@ public class LabController {
     ) throws IOException {
         return ResponseEntity.ok(labService.patchUpdateReportFile(reportId, file));
     }
+ // ✅ LAB STATUS + PRESCRIPTION APIs
+    @GetMapping("/status/urgent")
+    public ResponseEntity<java.util.Map<String, Object>> getUrgentLabsWithPrescriptionToday() {
+        return ResponseEntity.ok(labService.getUrgentLabsWithPrescriptionToday());
+    }
+
+    @GetMapping("/status/pending")
+    public ResponseEntity<java.util.Map<String, Object>> getPendingLabsWithPrescriptionToday() {
+        return ResponseEntity.ok(labService.getPendingLabsWithPrescriptionToday());
+    }
+
+    @GetMapping("/status/completed")
+    public ResponseEntity<java.util.Map<String, Object>> getCompletedLabsWithPrescriptionToday() {
+        return ResponseEntity.ok(labService.getCompletedLabsWithPrescriptionToday());
+    }
+
+    @GetMapping("/status/all")
+    public ResponseEntity<java.util.Map<String, Object>> getAllLabsWithPrescriptionToday() {
+        return ResponseEntity.ok(labService.getAllLabsWithPrescriptionToday());
+    }
+
 }
