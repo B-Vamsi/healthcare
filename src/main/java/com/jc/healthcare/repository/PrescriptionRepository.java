@@ -92,4 +92,18 @@ public interface PrescriptionRepository extends JpaRepository<Prescription, Long
         AND TRUNC(pr.date_issued) = TRUNC(SYSDATE)
         """, nativeQuery = true)
     Long countAllWithLabStatusToday();
+    
+    @Query(value = """
+    	    SELECT p.patient_id, p.name, p.lab_status,
+    	           pr.date_issued, pr.selected_medicines, pr.selected_tests,
+    	           pr.dosage, pr.medication
+    	    FROM patients p
+    	    JOIN prescription pr ON p.patient_id = pr.patient_id
+    	    WHERE p.patient_id = :patientId
+    	    ORDER BY pr.date_issued DESC
+    	""", nativeQuery = true)
+    	List<Object[]> getPatientPrescriptionHistory(Long patientId);
+
+
+
 }

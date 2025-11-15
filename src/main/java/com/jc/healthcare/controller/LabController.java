@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/labs")
@@ -92,7 +93,7 @@ public class LabController {
     ) throws IOException {
         return ResponseEntity.ok(labService.patchUpdateReportFile(reportId, file));
     }
- // ✅ LAB STATUS + PRESCRIPTION APIs
+ 
     @GetMapping("/status/urgent")
     public ResponseEntity<java.util.Map<String, Object>> getUrgentLabsWithPrescriptionToday() {
         return ResponseEntity.ok(labService.getUrgentLabsWithPrescriptionToday());
@@ -112,5 +113,14 @@ public class LabController {
     public ResponseEntity<java.util.Map<String, Object>> getAllLabsWithPrescriptionToday() {
         return ResponseEntity.ok(labService.getAllLabsWithPrescriptionToday());
     }
+    @GetMapping("/reports/all/{patientId}")
+    public ResponseEntity<List<LabReport>> getFullReportsByPatient(@PathVariable Long patientId) {
+        return ResponseEntity.ok(labService.getFullReportsByPatient(patientId));
+    }
+    @GetMapping("/history/{patientId}")
+    public ResponseEntity<Map<String, Object>> getFullHistory(@PathVariable Long patientId) {
+        return ResponseEntity.ok(labService.getFullPatientHistory(patientId));
+    }
+
 
 }

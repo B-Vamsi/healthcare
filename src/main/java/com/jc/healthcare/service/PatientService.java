@@ -6,11 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 @Service
 public class PatientService {
@@ -36,6 +33,7 @@ public class PatientService {
 
     public Patient updatePatient(Long id, Patient updatedPatient) {
         return patientRepository.findById(id).map(patient -> {
+
             patient.setName(updatedPatient.getName());
             patient.setGender(updatedPatient.getGender());
             patient.setAadhar(updatedPatient.getAadhar());
@@ -56,6 +54,7 @@ public class PatientService {
             patient.setMedisionStatus(updatedPatient.getMedisionStatus());
             patient.setDoctorStatus(updatedPatient.getDoctorStatus());
             patient.setLabStatus(updatedPatient.getLabStatus());
+
             return patientRepository.save(patient);
         }).orElseThrow(() -> new RuntimeException("Patient not found with ID: " + id));
     }
@@ -79,28 +78,19 @@ public class PatientService {
         return patientRepository.findByLabStatusIgnoreCase(status);
     }
 
-    // ✅ Filter Patients by Date Range + Status
+    // Filter native
     public List<Patient> getFilteredPatientsNative(String fromDate, String medisionStatus, String doctorStatus, Long doctorId) {
-        try {
-            return patientRepository.findPatientsByStatusAndDateNative(fromDate, medisionStatus, doctorStatus, doctorId);
-        } catch (Exception e) {
-            throw new RuntimeException("❌ Error while fetching data: " + e.getMessage());
-        }
+        return patientRepository.findPatientsByStatusAndDateNative(fromDate, medisionStatus, doctorStatus, doctorId);
     }
-    
-   
 
+    // Full details mapping
     public Map<String, Object> getFullPatientDetails(Long patientId) {
         List<Object[]> result = patientRepository.getFullPatientDetails(patientId);
-
-        if (result.isEmpty()) {
-            throw new RuntimeException("No details found for patient ID: " + patientId);
-        }
+        if (result.isEmpty()) throw new RuntimeException("No details found");
 
         Object[] row = result.get(0);
-        Map<String, Object> data = new HashMap<>();
+        Map<String, Object> map = new HashMap<>();
 
-        // 🧍 Patient Details
         Map<String, Object> patient = new HashMap<>();
         patient.put("patientId", row[0]);
         patient.put("name", row[1]);
@@ -112,15 +102,13 @@ public class PatientService {
         patient.put("medisionStatus", row[7]);
         patient.put("labStatus", row[8]);
 
-        // 🛏️ Bed Booking Details
-        Map<String, Object> bedBooking = new HashMap<>();
-        bedBooking.put("bookingId", row[9]);
-        bedBooking.put("bedId", row[10]);
-        bedBooking.put("admissionDate", row[11]);
-        bedBooking.put("dischargeDate", row[12]);
-        bedBooking.put("status", row[13]);
+        Map<String, Object> bed = new HashMap<>();
+        bed.put("bookingId", row[9]);
+        bed.put("bedId", row[10]);
+        bed.put("admissionDate", row[11]);
+        bed.put("dischargeDate", row[12]);
+        bed.put("status", row[13]);
 
-        // 🏥 Ward Details
         Map<String, Object> ward = new HashMap<>();
         ward.put("wardId", row[14]);
         ward.put("wardName", row[15]);
@@ -128,77 +116,42 @@ public class PatientService {
         ward.put("totalBeds", row[17]);
         ward.put("createdOn", row[18]);
 
-        data.put("patient", patient);
-        data.put("bedBooking", bedBooking);
-        data.put("ward", ward);
+        map.put("patient", patient);
+        map.put("bedBooking", bed);
+        map.put("ward", ward);
 
-        return data;
+        return map;
     }
-    
+
     public Patient partialUpdatePatient(Long id, Map<String, Object> updates) {
         Patient patient = patientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Patient not found with ID: " + id));
+                .orElseThrow(() -> new RuntimeException("Patient not found"));
 
-        // 🧠 Dynamically update fields
         updates.forEach((key, value) -> {
             switch (key) {
-                case "name":
-                    patient.setName((String) value);
-                    break;
-                case "gender":
-                    patient.setGender((String) value);
-                    break;
-                case "aadhar":
-                    patient.setAadhar((String) value);
-                    break;
-                case "phone":
-                    patient.setPhone((String) value);
-                    break;
-                case "address":
-                    patient.setAddress((String) value);
-                    break;
-                case "disease":
-                    patient.setDisease((String) value);
-                    break;
-                case "doctorId":
-                    patient.setDoctorId(Long.valueOf(value.toString()));
-                    break;
-                case "doctorStatus":
-                    patient.setDoctorStatus((String) value);
-                    break;
-                case "labStatus":
-                    patient.setLabStatus((String) value);
-                    break;
-                case "medisionStatus":
-                    patient.setMedisionStatus((String) value);
-                    break;
-                case "dosageInstructions":
-                    patient.setDosageInstructions((String) value);
-                    break;
-                case "notes":
-                    patient.setNotes((String) value);
-                    break;
-                case "selectedMedicines":
-                    patient.setSelectedMedicines((String) value);
-                    break;
-                case "selectedTests":
-                    patient.setSelectedTests((String) value);
-                    break;
-                case "appointmentDate":
-                    patient.setAppointmentDate((String) value);
-                    break;
-                case "appointmentTime":
-                    patient.setAppointmentTime((String) value);
-                    break;
-               
-                default:
-                    System.out.println("⚠️ Unknown field ignored: " + key);
+                case "doctorStatus" -> patient.setDoctorStatus((String) value);
+                case "labStatus" -> patient.setLabStatus((String) value);
+                case "medisionStatus" -> patient.setMedisionStatus((String) value);
+                case "selectedTests" -> patient.setSelectedTests((String) value);
+                case "selectedMedicines" -> patient.setSelectedMedicines((String) value);
+                case "notes" -> patient.setNotes((String) value);
+                case "appointmentTime" -> patient.setAppointmentTime((String) value);
+                case "appointmentDate" -> patient.setAppointmentDate((String) value);
+                default -> {}
             }
         });
 
         return patientRepository.save(patient);
     }
 
-
-
+    // TODAY FEATURES
+    public List<Patient> getAllTodayPatients() {
+        return patientRepository.findAllTodayPatients();
+    }
+    public List<Patient> getTodayDoctorCompleted() {
+        return patientRepository.findTodayDoctorCompleted();
+    }
+    public List<Patient> getTodayDoctorPending() {
+        return patientRepository.findTodayDoctorPending();
+    }
 }

@@ -167,4 +167,48 @@ public class LabService {
         response.put("data", data);
         return response;
     }
+        
+        public List<LabReport> getFullReportsByPatient(Long patientId) {
+            return reportRepo.findByPatientId(patientId); // returns full LabReport entity
+        }
+        
+        public Map<String, Object> getFullPatientHistory(Long patientId) {
+
+            List<Object[]> rawPres = prescriptionRepo.getPatientPrescriptionHistory(patientId);
+
+            List<Map<String, Object>> prescriptions = rawPres.stream().map(row -> {
+                Map<String, Object> rec = new LinkedHashMap<>();
+                Long pid = ((Number) row[0]).longValue();  
+                rec.put("patientId", pid);
+                rec.put("name", row[1]);
+                rec.put("labStatus", row[2]);
+                rec.put("dateIssued", row[3] != null ? row[3].toString() : null);
+                rec.put("selectedMedicines", row[4]);
+                rec.put("selectedTests", row[5]);
+                rec.put("dosage", row[6]);
+                rec.put("medication", row[7]);
+                return rec;
+            }).collect(Collectors.toList());
+
+            List<LabReport> reports = reportRepo.findByPatientId(patientId);
+
+            List<Map<String, Object>> labReports = reports.stream().map(r -> {
+                Map<String, Object> rep = new LinkedHashMap<>();
+                rep.put("reportId", r.getReportId());
+                rep.put("testName", r.getTest().getTestName());
+                rep.put("fileName", r.getFileName());
+                rep.put("fileType", r.getFileType());
+                rep.put("uploadedOn", r.getUploadedOn());
+                rep.put("reportFile", r.getReportFile());
+                return rep;
+            }).collect(Collectors.toList());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("prescriptions", prescriptions);
+            response.put("labReports", labReports);
+
+            return response;
+        }
+
+
 }

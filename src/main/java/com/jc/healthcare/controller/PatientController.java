@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -18,29 +19,68 @@ public class PatientController {
     @Autowired
     private PatientService patientService;
 
+    private String getToday() {
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MMM-yy")).toUpperCase();
+    }
+
     // ➕ Add New Patient
     @PostMapping("/add")
     public ResponseEntity<Map<String, Object>> addPatient(@RequestBody Patient patient) {
+
         Map<String, Object> response = new HashMap<>();
         try {
-        	if (patient.getAppointmentDate() == null) {
-        	    patient.setAppointmentDate(java.time.LocalDate.now().toString());
-        	}
-        	if (patient.getAppointmentTime() == null) {
-        	    patient.setAppointmentTime(java.time.LocalTime.now().toString());
-        	}
 
-            Patient savedPatient = patientService.addPatient(patient);
+            // Formatters
+            DateTimeFormatter inFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd"); // From React
+            DateTimeFormatter outFmt = DateTimeFormatter.ofPattern("dd-MMM-yy", Locale.ENGLISH);
+
+            // --- Appointment Date ---
+            if (patient.getAppointmentDate() == null || patient.getAppointmentDate().isEmpty()) {
+                patient.setAppointmentDate(LocalDate.now().format(outFmt).toUpperCase());
+            } else {
+                LocalDate d = LocalDate.parse(patient.getAppointmentDate(), inFmt);
+                patient.setAppointmentDate(d.format(outFmt).toUpperCase());
+            }
+
+            // --- Appointment Time ---
+            if (patient.getAppointmentTime() == null || patient.getAppointmentTime().isEmpty()) {
+                patient.setAppointmentTime(java.time.LocalTime.now().toString());
+            }
+
+           
+            // Default Statuses
+            patient.setMedisionStatus("Pending");
+            patient.setDoctorStatus("Pending");
+            patient.setLabStatus("Pending");
+
+            // Save Patient
+            Patient saved = patientService.addPatient(patient);
+
             response.put("success", true);
-            response.put("data", savedPatient);
+            response.put("data", saved);
             response.put("message", "Patient added successfully");
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
         } catch (Exception e) {
+
+            if (e.getMessage().contains("ORA-00001")) {
+                if (e.getMessage().toUpperCase().contains("AADHAR"))
+                    response.put("message", "Aadhar number already exists!");
+                else if (e.getMessage().toUpperCase().contains("PHONE"))
+                    response.put("message", "Phone number already exists!");
+                else
+                    response.put("message", "Duplicate value exists!");
+
+                response.put("success", false);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+            }
+
             response.put("success", false);
-            response.put("message", "Error adding patient: " + e.getMessage());
+            response.put("message", "Error: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
+
 
     // 📋 Get All Patients
     @GetMapping
@@ -248,4 +288,36 @@ public class PatientController {
 
 
 
+    @GetMapping("/today/all")
+    public ResponseEntity<Map<String, Object>> getAllTodayPatients() {
+        Map<String, Object> res = new HashMap<>();
+        List<Patient> list = patientService.getAllTodayPatients();
+        res.put("success", true);
+        res.put("count", list.size());
+        res.put("data", list);
+        res.put("date", getToday());
+        return ResponseEntity.ok(res);
+    }
+
+    @GetMapping("/today/doctor-completed")
+    public ResponseEntity<Map<String, Object>> getTodayDocCompleted() {
+        Map<String, Object> res = new HashMap<>();
+        List<Patient> list = patientService.getTodayDoctorCompleted();
+        res.put("success", true);
+        res.put("count", list.size());
+        res.put("data", list);
+        res.put("date", getToday());
+        return ResponseEntity.ok(res);
+    }
+
+    @GetMapping("/today/doctor-pending")
+    public ResponseEntity<Map<String, Object>> getTodayDocPending() {
+        Map<String, Object> res = new HashMap<>();
+        List<Patient> list = patientService.getTodayDoctorPending();
+        res.put("success", true);
+        res.put("count", list.size());
+        res.put("data", list);
+        res.put("date", getToday());
+        return ResponseEntity.ok(res);
+    }
 }
